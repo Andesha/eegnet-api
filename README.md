@@ -9,7 +9,7 @@ FastAPI demo for offloading EEG operations to Python
 2. Run the app with:
 
 ```bash
-uvicorn src.main:app --reload
+uvicorn app.main:app --reload
 ```
 
 The API will be available at [http://127.0.0.1:8000](http://127.0.0.1:8000).
