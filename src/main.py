@@ -40,7 +40,26 @@ def get_mne_info() -> dict[str, dict[str, str]]:
     return {"message": extract_metadata(raw)}
 
 @router.post("/upload/")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(...)) -> dict[str, str]:
+    """
+    Upload and validate an EEG file.
+    
+    This endpoint accepts file uploads and validates them using MNE-Python.
+    The function signature uses FastAPI's dependency injection system:
+    
+    Args:
+        file (UploadFile): FastAPI's UploadFile type that wraps the uploaded file.
+                          The File(...) dependency tells FastAPI this parameter
+                          should be populated from the request's form data.
+                          The ellipsis (...) indicates this parameter is required.
+    
+    Returns:
+        dict[str, str]: A dictionary containing upload confirmation message,
+                       generated file ID, and original filename.
+    
+    Raises:
+        HTTPException: If the uploaded file cannot be read by MNE-Python.
+    """
     # Save to disk
     file_id = str(uuid.uuid4())
     file_path = UPLOAD_DIR / f"{file_id}_{file.filename}"
