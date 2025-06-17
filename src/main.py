@@ -22,16 +22,16 @@ def read_root() -> dict[str, str]:
 # Extract metadata from the raw object.
 def extract_metadata(raw):
     return {
-        "n_channels": raw.info["nchan"],
-        "sfreq": raw.info["sfreq"],
-        "duration_sec": raw.n_times / raw.info["sfreq"],
-        "ch_names": raw.info["ch_names"],
+        "n_channels": str(raw.info["nchan"]),
+        "sfreq": str(raw.info["sfreq"]),
+        "duration_sec": str(raw.n_times / raw.info["sfreq"]),
+        "ch_names": str(raw.info["ch_names"]),
         "meas_date": str(raw.info["meas_date"]),
     }
 
 # Endpoint to return the info attribute of the MNE sample dataset.
 @app.get("/mne-info", response_class=JSONResponse)
-def get_mne_info() -> dict[str, str]:
+def get_mne_info() -> dict[str, dict[str, str]]:
     """Endpoint to return the info attribute of the MNE sample dataset."""
 
     fname = mne.datasets.sample.data_path() / 'MEG' / 'sample' /  'sample_audvis_raw.fif'
@@ -50,7 +50,7 @@ async def upload_file(file: UploadFile = File(...)):
 
     # Attempt loading via MNE (basic check)
     try:
-        raw = mne.io.read_raw(file_path, preload=False)
+        _ = mne.io.read_raw(file_path, preload=False)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Could not read file with MNE: {e}")
 
