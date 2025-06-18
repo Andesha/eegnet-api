@@ -56,7 +56,7 @@ def get_metadata(file_id: str):
         raise HTTPException(status_code=500, detail=f"Error processing file: {e}")
 
 @router.websocket("/ws/stream/{file_id}")
-async def stream_eeg(websocket: WebSocket, file_id: str):
+async def stream_eeg(websocket: WebSocket, file_id: str, chunk_size=512 * 1024):
     await websocket.accept()
 
     print("WebSocket connected")
@@ -72,16 +72,15 @@ async def stream_eeg(websocket: WebSocket, file_id: str):
         sfreq = int(raw.info["sfreq"])
         total_samples = raw.n_times
 
-        print("Loaded file successfully")
-        print(f"Number of samples: {raw.n_times}")
-        print(f"Sampling rate: {raw.info['sfreq']}")
-
         chunk_size = sfreq  # 1-second chunks
         idx = 0
 
         while idx < raw.n_times:
-            print(f"Loop at index {idx}")
             data, times = raw[:, idx:idx+chunk_size]
+
+            # Slice the data to only include every 10th sample
+            data = data[:, ::10]
+            times = times[::10]
 
             message = {
                 "t": float(times[0]),
@@ -89,10 +88,12 @@ async def stream_eeg(websocket: WebSocket, file_id: str):
             }
 
             await websocket.send_text(json.dumps(message))  # This could be failing silently
-            print("Sent chunk")
+            percent_complete = (idx / total_samples) * 100
+            print(f"Sent chunk - {percent_complete:.1f}% complete")
             idx += chunk_size
-            await asyncio.sleep(1.0)
 
+        # close the websocket
+        await websocket.close()
 
     except WebSocketDisconnect:
         print("WebSocket disconnected")
