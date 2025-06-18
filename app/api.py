@@ -1,9 +1,13 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pathlib import Path
 import uuid
 import shutil
 import mne
+import json
+import asyncio
+from fastapi.websockets import WebSocket, WebSocketDisconnect
+from io import BytesIO
 
 UPLOAD_DIR = Path("app/storage")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -50,3 +54,48 @@ def get_metadata(file_id: str):
         return JSONResponse(content=metadata)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing file: {e}")
+
+@router.websocket("/ws/stream/{file_id}")
+async def stream_eeg(websocket: WebSocket, file_id: str):
+    await websocket.accept()
+
+    print("WebSocket connected")
+
+    # Find matching file
+    matches = list(UPLOAD_DIR.glob(f"{file_id}_*"))
+    if not matches:
+        raise HTTPException(status_code=404, detail="File not found uh oh")
+    file_path = matches[0]
+
+    try:
+        raw = mne.io.read_raw(file_path, preload=False)
+        sfreq = int(raw.info["sfreq"])
+        total_samples = raw.n_times
+
+        print("Loaded file successfully")
+        print(f"Number of samples: {raw.n_times}")
+        print(f"Sampling rate: {raw.info['sfreq']}")
+
+        chunk_size = sfreq  # 1-second chunks
+        idx = 0
+
+        while idx < raw.n_times:
+            print(f"Loop at index {idx}")
+            data, times = raw[:, idx:idx+chunk_size]
+
+            message = {
+                "t": float(times[0]),
+                "data": data.tolist()
+            }
+
+            await websocket.send_text(json.dumps(message))  # This could be failing silently
+            print("Sent chunk")
+            idx += chunk_size
+            await asyncio.sleep(1.0)
+
+
+    except WebSocketDisconnect:
+        print("WebSocket disconnected")
+    except Exception as e:
+        await websocket.send_text(json.dumps({"error": str(e)}))
+        await websocket.close()
