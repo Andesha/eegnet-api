@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from pathlib import Path
@@ -100,3 +101,42 @@ async def stream_eeg(websocket: WebSocket, file_id: str, chunk_size=512 * 1024):
     except Exception as e:
         await websocket.send_text(json.dumps({"error": str(e)}))
         await websocket.close()
+
+# Topo plot generation endpoint which returns a PNG image
+# Takes two parameters: start_time and end_time
+@router.get("/topo/{file_id}")
+def get_topo(file_id: str, start_time: float, end_time: float):
+    # Find matching file
+    matches = list(UPLOAD_DIR.glob(f"{file_id}_*"))
+    if not matches:
+        raise HTTPException(status_code=404, detail="File not found")
+    file_path = matches[0]
+
+    # Load the file
+    raw = mne.io.read_raw(file_path, preload=False).pick('eeg')
+    raw = raw.crop(tmin=start_time, tmax=end_time)
+    raw = raw.drop_channels(['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8', 'GSR1', 'GSR2', 'Erg1', 'Erg2', 'Resp', 'Plet', 'Temp'], on_missing='ignore')
+    raw = raw.set_montage('biosemi128', on_missing='ignore')
+
+    # Average over time
+    data_avg = raw.get_data().mean(axis=1)
+
+    fig, ax = plt.subplots()
+    im, _ = mne.viz.plot_topomap(
+        data_avg,
+        raw.info,
+        axes=ax,
+        show=False,
+        contours=0,
+    )
+    # fig.savefig("topo.png")
+
+    # Save figure to in-memory buffer
+    import io
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', dpi=300)
+    plt.close(fig)
+    buf.seek(0)
+
+    # Return as StreamingResponse
+    return StreamingResponse(buf, media_type="image/png")

@@ -39,7 +39,7 @@ You should be given a message that looks something like:
 {"message":"File uploaded successfully","file_id":"ce6c64c7-cc81-4855-807c-9a3711528f3c","filename":"large_demo.bdf"}
 ```
 
-From here, you would normally use the `file_id` parameter to pass to other API endpoints so that the internal system knows which file you are talking about.
+The `file_id` parameter is used to pass to other API endpoints so that the internal system knows which file you are talking about.
 
 For testing purposes, these can be renamed or shortened internally to make demo queries simpler.
 
@@ -48,3 +48,7 @@ For testing purposes, these can be renamed or shortened internally to make demo 
 Done via: `curl -X GET "http://localhost:8000/metadata/ce6c64c7-cc81-4855-807c-9a3711528f3c"`. Note the long string field should be a given `file_id` from the upload.
 
 ## Getting a topoplot from a time region
+
+`curl -X GET "http://localhost:8000/topo/ce6c64c7-cc81-4855-807c-9a3711528f3c?start_time=5.0&end_time=10.0" --output topo_test.png`
+
+You can view the resulting file wherever you have saved run the curl command from.
