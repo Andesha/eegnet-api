@@ -6,8 +6,6 @@ import os
 import mne
 import mne_bids
 from typing import List
-import json
-import matplotlib.pyplot as plt
 from io import BytesIO
 
 MOUNT_PATH = "/data"
@@ -32,22 +30,34 @@ app = FastAPI(
     },
 )
 
-# @app.get("/montage")
-# def read_montages(path: str) -> str:
-#     try:
-#         raw = mne.io.read_raw(path)
-#     except Exception as e:
-#         raise HTTPException(status_code=400, detail=str(e))
 
-#     return ', '.join(raw.info['ch_names'])
+def load_helper(path: str) -> mne.io.Raw:
+    """
+    Helper function to load a raw dataset from the given path.
 
+    Parameters
+    ----------
+    path : str
+        The path to the raw dataset.
+
+    Returns
+    -------
+    mne.Raw
+        The loaded raw dataset.
+    """
+
+    try:
+        raw = mne.io.read_raw(path)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return raw
 
 @app.get(
     "/montage",
     response_class=StreamingResponse,
-    summary="Generate a simple test plot",
+    summary="Generate a basic montage image",
     description=(
-        "Creates a simple matplotlib line plot in memory and returns it as a PNG image.\n\n"
+        "Creates a simple montage image for the given path and returns it as a PNG image.\n\n"
         "The image is streamed directly in the response, without writing to disk."
     ),
     responses={
@@ -64,42 +74,31 @@ app = FastAPI(
         }
     },
 )
-def build_base_montage(x: List[float] = [1, 2, 3], y: List[float] = [4, 5, 6]) -> StreamingResponse:
+def base_montage(path: str) -> StreamingResponse:
     """
-    Generate a PNG plot based on the provided x/y numeric data.
+    Base montage endpoint for the given path.
 
     Parameters
     ----------
-    x : List[float]
-        X-axis values used for the plot. Defaults to `[1, 2, 3]`.
-    y : List[float]
-        Y-axis values used for the plot. Defaults to `[4, 5, 6]`.
+    path : str
+        The path to the raw dataset.
 
     Returns
     -------
     StreamingResponse
-        An HTTP response streaming a PNG image in memory.
-
-    Notes
-    -----
-    - Uses matplotlib to generate the plot entirely in memory.
-    - The PNG is not written to disk.
-    - Returned with correct `image/png` media type.
+        A streaming response containing the montage image.
     """
-    # --- Create the figure ---
-    fig, ax = plt.subplots()
-    ax.plot(x, y, linewidth=2)
-    ax.set_xlabel("X values")
-    ax.set_ylabel("Y values")
-    ax.set_title("Generated Plot")
 
-    # --- Render to PNG in memory ---
+    # Load helper is fine, setting montage for test case
+    raw = load_helper(path)
+    raw = raw.set_montage('biosemi128', on_missing='ignore')
+    fig = raw.plot_sensors(show_names=True, show=False)
+
+    # Write figure to buffer for streaming
     buffer = BytesIO()
     fig.savefig(buffer, format="png", dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    buffer.seek(0)
+    buffer.seek(0) # Reset buffer to start?
 
-    # --- Stream back to client ---
     return StreamingResponse(buffer, media_type="image/png")
 
 
