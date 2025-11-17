@@ -1,2 +1,4 @@
 env
 *.bdf
+__pycache__
+
