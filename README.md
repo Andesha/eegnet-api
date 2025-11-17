@@ -19,3 +19,4 @@ Should be available where the host is and adding `/docs#` to the hosted location
 * Error handling
 * Security review
 * Image scaling on the plots
+* Rework data loading once testing on dev is available
