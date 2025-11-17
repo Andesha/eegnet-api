@@ -7,7 +7,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["fastapi", "run", "app/main.py", "--port", "80"]
-
-# If running behind a proxy like Nginx or Traefik add --proxy-headers
-# CMD ["fastapi", "run", "app/main.py", "--port", "80", "--proxy-headers"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
